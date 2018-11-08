@@ -1,20 +1,44 @@
 package ${package}.${moduleName}.service;
 
-import com.baomidou.mybatisplus.service.IService;
-import ${mainPath}.common.utils.PageUtils;
 import ${package}.${moduleName}.entity.${className}Entity;
-
-import java.util.Map;
+import com.kiiik.pub.bean.ResultBean;
 
 /**
- * ${comments}
- *
- * @author ${author}
- * @email ${email}
- * @date ${datetime}
+ * 服务接口定义
+ * 作者: ${author}
+ * 邮件: ${email}
+ * 日期: ${datetime}
  */
-public interface ${className}Service extends IService<${className}Entity> {
+public interface ${className}Service  {
 
-    PageUtils queryPage(Map<String, Object> params);
+/**
+ * 
+ *作者 :  ${author}<br>
+ *方法描述: 新增记录<br>
+ *创建时间: ${datetime}
+ *@param 
+ *@return
+ */
+ ResultBean<String> add${className}Entity(${className}Entity entity);
+ 
+ /**
+ * 
+ *作者 :  ${author}<br>
+ *方法描述: 更新记录<br>
+ *创建时间: ${datetime}
+ *@param 
+ *@return
+ */
+ ResultBean<String> upd${className}Entity(${className}Entity entity);
+ 
+ /**
+ * 
+ *作者 :  ${author}<br>
+ *方法描述: 根据主键删除记录<br>
+ *创建时间: ${datetime}
+ *@param 
+ *@return
+ */
+ ResultBean<String> del${className}Entity(Integer id);
 }
 

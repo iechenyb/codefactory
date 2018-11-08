@@ -1,17 +1,12 @@
 package ${package}.${moduleName}.dao;
-
-import ${package}.${moduleName}.entity.${className}Entity;
-import com.baomidou.mybatisplus.mapper.BaseMapper;
-import org.apache.ibatis.annotations.Mapper;
-
+import org.springframework.stereotype.Repository;
 /**
- * ${comments}
- * 
- * @author ${author}
- * @email ${email}
- * @date ${datetime}
+ * 数据库访问层
+ * 作者: ${author}
+ * 邮件: ${email}
+ * 日期: ${datetime}
  */
-@Mapper
-public interface ${className}Dao extends BaseMapper<${className}Entity> {
+@Repository
+public class ${className}Dao {
 	
 }

@@ -1,7 +1,17 @@
 package io.renren.utils;
 
-import io.renren.entity.ColumnEntity;
-import io.renren.entity.TableEntity;
+import java.io.File;
+import java.io.IOException;
+import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
+
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
@@ -11,13 +21,12 @@ import org.apache.commons.lang.WordUtils;
 import org.apache.velocity.Template;
 import org.apache.velocity.VelocityContext;
 import org.apache.velocity.app.Velocity;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
+import org.springframework.stereotype.Component;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.StringWriter;
-import java.util.*;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
+import io.renren.entity.ColumnEntity;
+import io.renren.entity.TableEntity;
 
 /**
  * 代码生成器   工具类
@@ -26,62 +35,47 @@ import java.util.zip.ZipOutputStream;
  * @email sunlightcs@gmail.com
  * @date 2016年12月19日 下午11:40:24
  */
+@Component
 public class GenUtils {
-
-    public static List<String> getTemplates(){
-        List<String> templates = new ArrayList<String>();
-        templates.add("template/Entity.java.vm");
-        templates.add("template/Dao.java.vm");
-        templates.add("template/Dao.xml.vm");
-        templates.add("template/Service.java.vm");
-        templates.add("template/ServiceImpl.java.vm");
-        templates.add("template/Controller.java.vm");
-        templates.add("template/menu.sql.vm");
-
-        templates.add("template/index.vue.vm");
-        templates.add("template/add-or-update.vue.vm");
-
+	
+	@Autowired
+    Environment env;
+	
+    public  List<String> getTemplates(){
+    	List<String> templates = new ArrayList<String>();
+    	templates.add("template/Entity.java.vm");
+    	if(env.getProperty("spring.profiles.active").equals("dev")){
+	        templates.add("template/Dao.java.vm");
+	        templates.add("template/Dao.xml.vm");
+	        templates.add("template/Service.java.vm");
+	        templates.add("template/ServiceImpl.java.vm");
+	        templates.add("template/Controller.java.vm");
+	        templates.add("template/menu.sql.vm");
+	        templates.add("template/index.vue.vm");
+	        templates.add("template/add-or-update.vue.vm");
+    	}
         return templates;
     }
-  //首字母转小写
-    public static String toLowerCaseFirstOne(String s){
-      if(Character.isLowerCase(s.charAt(0)))
-        return s;
-      else
-        return (new StringBuilder()).append(Character.toLowerCase(s.charAt(0))).append(s.substring(1)).toString();
-    }
 
-
-    //首字母转大写
-    public static String toUpperCaseFirstOne(String s){
-      if(Character.isUpperCase(s.charAt(0)))
-        return s;
-      else
-        return (new StringBuilder()).append(Character.toUpperCase(s.charAt(0))).append(s.substring(1)).toString();
-    }
     /**
      * 生成代码
      */
-    public static void generatorCode(Map<String, String> table,
+    public  void generatorCode(Map<String, String> table,
                                      List<Map<String, String>> columns, ZipOutputStream zip) {
         //配置信息
         Configuration config = getConfig();
         boolean hasBigDecimal = false;
-        String moduleName=table.get("moduleName");//自定义映射
-        if(org.springframework.util.StringUtils.isEmpty(moduleName)){
-        	moduleName = toUpperCaseFirstOne(moduleName);//必须小写，用于包名
-        }
         //表信息
         TableEntity tableEntity = new TableEntity();
         tableEntity.setTableName(table.get("tableName" ));
         tableEntity.setComments(table.get("tableComment" ));
-        //表名转换成Java类名 自定义模块名 比如user role->User Role
-        String className = toUpperCaseFirstOne(moduleName);//tableToJava(tableEntity.getTableName(), config.getString("tablePrefix" ));
+        //表名转换成Java类名
+        String className = tableToJava(tableEntity.getTableName(), config.getString("tablePrefix" ));
         tableEntity.setClassName(className);
         tableEntity.setClassname(StringUtils.uncapitalize(className));
 
         //列信息
-        List<ColumnEntity> columsList = new ArrayList<ColumnEntity>();
+        List<ColumnEntity> columsList = new ArrayList<>();
         for(Map<String, String> column : columns){
             ColumnEntity columnEntity = new ColumnEntity();
             columnEntity.setColumnName(column.get("columnName" ));
@@ -121,18 +115,36 @@ public class GenUtils {
         String mainPath = config.getString("mainPath" );
         mainPath = StringUtils.isBlank(mainPath) ? "io.renren" : mainPath;
         //封装模板数据
-        Map<String, Object> map = new HashMap<String, Object>();
+        Map<String, Object> map = new HashMap<>();
         map.put("tableName", tableEntity.getTableName());
         map.put("comments", tableEntity.getComments());
         map.put("pk", tableEntity.getPk());
-        map.put("className", tableEntity.getClassName());
-        map.put("classname", tableEntity.getClassname());
+        //map.put("className", tableEntity.getClassName());//TSysEmployeeController
+        /**
+         * 2018年11月7日16:46:41
+         * 更新逻辑  将className进行处理 ，将指定的规则集合去掉  比如  t_sys_xxxxx  去掉TSys
+         */
+        String[] cutNames = getConfig().getStringArray("cutNames");
+        if(cutNames.length>0){
+        	String className_ =  tableEntity.getClassName();
+	        for(int i=0;i<cutNames.length;i++){
+	        	className_ = className_.replace(cutNames[i], "");
+	        }
+	        map.put("className", className_);
+        }else{
+        	map.put("className", tableEntity.getClassName());
+        }
+        if(map.get("className")!=null){
+        	map.put("classname", toLowerCaseFirstOne(map.get("className").toString()));//首字母小写类名
+        }else{
+        	map.put("classname",tableEntity.getClassname());
+        }
         map.put("pathName", tableEntity.getClassname().toLowerCase());
         map.put("columns", tableEntity.getColumns());
         map.put("hasBigDecimal", hasBigDecimal);
         map.put("mainPath", mainPath);
         map.put("package", config.getString("package" ));
-        map.put("moduleName", toLowerCaseFirstOne(moduleName));//根模块config.getString("moduleName" )
+        map.put("moduleName",map.get("classname"));//generator config.getString("moduleName") 
         map.put("author", config.getString("author" ));
         map.put("email", config.getString("email" ));
         map.put("datetime", DateUtils.format(new Date(), DateUtils.DATE_TIME_PATTERN));
@@ -148,7 +160,8 @@ public class GenUtils {
 
             try {
                 //添加到zip
-                zip.putNextEntry(new ZipEntry(getFileName(template, tableEntity.getClassName(), config.getString("package" ),toLowerCaseFirstOne(moduleName) )));//config.getString("moduleName" )
+                //zip.putNextEntry(new ZipEntry(getFileName(template, tableEntity.getClassName()+1, config.getString("package" ), config.getString("moduleName" ))));
+                zip.putNextEntry(new ZipEntry(getFileName(template, map.get("className").toString(), config.getString("package" ), map.get("classname").toString())));
                 IOUtils.write(sw.toString(), zip, "UTF-8" );
                 IOUtils.closeQuietly(sw);
                 zip.closeEntry();
@@ -158,18 +171,35 @@ public class GenUtils {
         }
     }
 
+  //首字母转小写
+    public static String toLowerCaseFirstOne(String s){
+      System.out.println("小写转换内容："+s);
+      if(Character.isLowerCase(s.charAt(0)))
+        return s;
+      else
+        return (new StringBuilder()).append(Character.toLowerCase(s.charAt(0))).append(s.substring(1)).toString();
+    }
 
+
+    //首字母转大写
+    public static String toUpperCaseFirstOne(String s){
+      System.out.println("大写转换内容："+s);
+      if(Character.isUpperCase(s.charAt(0)))
+        return s;
+      else
+        return (new StringBuilder()).append(Character.toUpperCase(s.charAt(0))).append(s.substring(1)).toString();
+    }
     /**
      * 列名转换成Java属性名
      */
-    public static String columnToJava(String columnName) {
+    public  String columnToJava(String columnName) {
         return WordUtils.capitalizeFully(columnName, new char[]{'_'}).replace("_", "" );
     }
 
     /**
      * 表名转换成Java类名
      */
-    public static String tableToJava(String tableName, String tablePrefix) {
+    public  String tableToJava(String tableName, String tablePrefix) {
         if (StringUtils.isNotBlank(tablePrefix)) {
             tableName = tableName.replace(tablePrefix, "" );
         }
@@ -179,21 +209,39 @@ public class GenUtils {
     /**
      * 获取配置信息
      */
-    public static Configuration getConfig() {
+    public  Configuration getConfig() {
         try {
             return new PropertiesConfiguration("generator.properties" );
         } catch (ConfigurationException e) {
             throw new RRException("获取配置文件失败，", e);
         }
     }
+    
+    /**
+     * 获取配置信息
+     */
+    public  Configuration getAppConfig() {
+        try {
+            return new PropertiesConfiguration("application.yml" );
+        } catch (ConfigurationException e) {
+            throw new RRException("获取配置文件失败，", e);
+        }
+    }
+    
+    public static  void main(String[] args) {
+		/*String port = getAppConfig().getString("server:port");
+		System.out.println(port);*/
+		System.out.println(new GenUtils().getConfig().getStringArray("cutNames")[0]);
+		
+	}
 
     /**
      * 获取文件名
      */
-    public static String getFileName(String template, String className, String packageName, String moduleName) {
+    public  String getFileName(String template, String className, String packageName, String moduleName) {
         String packagePath = "main" + File.separator + "java" + File.separator;
         if (StringUtils.isNotBlank(packageName)) {
-            packagePath += packageName.replace(".", File.separator) + File.separator + toLowerCaseFirstOne(className) + File.separator;
+            packagePath += packageName.replace(".", File.separator) + File.separator + moduleName + File.separator;
         }
 
         if (template.contains("Entity.java.vm" )) {
@@ -236,4 +284,5 @@ public class GenUtils {
 
         return null;
     }
+   
 }
