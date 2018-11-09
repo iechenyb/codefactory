@@ -11,6 +11,7 @@ import ${package}.${moduleName}.service.${className}Service;
 
 /**
  * 业务处理层
+   ${comments}
  * 作者: ${author}
  * 邮件: ${email}
  * 日期: ${datetime}

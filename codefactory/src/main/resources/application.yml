@@ -7,7 +7,7 @@ spring:
     time-zone: GMT+8
     date-format: yyyy-MM-dd HH:mm:ss
   resources:
-    static-locations: classpath:/static/,classpath:/views/
+    static-locations: classpath:/static/,classpath:/views/,classpath:/swagger-ui.html
 mybatis:
   mapperLocations: classpath:mapper/**/*.xml
 

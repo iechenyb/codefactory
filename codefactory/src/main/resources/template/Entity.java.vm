@@ -10,8 +10,8 @@ import io.swagger.annotations.ApiModelProperty;
 import java.math.BigDecimal;
 #end
 /**
- * 
- * 数据库实体
+ * 数据库实体Bean
+ * ${comments}
  * 作者: ${author}
  * 邮件: ${email}
  * 日期: ${datetime}
@@ -29,7 +29,7 @@ public class ${className}Entity implements Serializable {
 	#if($column.columnName != $pk.columnName)
 	
 	@DBColumn("$column.columnName")
-	@ApiModelProperty(value="仅更新或者查询时，传参数！")
+	@ApiModelProperty(value="$column.comments,仅更新或者查询时，传参数！")
 	private $column.attrType $column.attrname;
 	
 	#end

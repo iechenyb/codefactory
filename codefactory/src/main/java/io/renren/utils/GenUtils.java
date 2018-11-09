@@ -44,12 +44,12 @@ public class GenUtils {
     public  List<String> getTemplates(){
     	List<String> templates = new ArrayList<String>();
     	templates.add("template/Entity.java.vm");
+    	templates.add("template/Dao.java.vm");
+        templates.add("template/Dao.xml.vm");
+        templates.add("template/Service.java.vm");
+        templates.add("template/ServiceImpl.java.vm");
+        templates.add("template/Controller.java.vm");
     	if(env.getProperty("spring.profiles.active").equals("dev")){
-	        templates.add("template/Dao.java.vm");
-	        templates.add("template/Dao.xml.vm");
-	        templates.add("template/Service.java.vm");
-	        templates.add("template/ServiceImpl.java.vm");
-	        templates.add("template/Controller.java.vm");
 	        templates.add("template/menu.sql.vm");
 	        templates.add("template/index.vue.vm");
 	        templates.add("template/add-or-update.vue.vm");
@@ -65,22 +65,32 @@ public class GenUtils {
         //配置信息
         Configuration config = getConfig();
         boolean hasBigDecimal = false;
+        boolean useComments = getConfig().getBoolean("useComments");//Boolean.valueOf(env.getProperty("useComments"));//是否使用注释
         //表信息
         TableEntity tableEntity = new TableEntity();
         tableEntity.setTableName(table.get("tableName" ));
-        tableEntity.setComments(table.get("tableComment" ));
+        if(useComments){
+        	tableEntity.setComments(table.get("tableComment" ));
+        }else{
+        	tableEntity.setComments(tableEntity.getTableName());
+        }
         //表名转换成Java类名
         String className = tableToJava(tableEntity.getTableName(), config.getString("tablePrefix" ));
         tableEntity.setClassName(className);
         tableEntity.setClassname(StringUtils.uncapitalize(className));
-
+        
         //列信息
         List<ColumnEntity> columsList = new ArrayList<>();
         for(Map<String, String> column : columns){
             ColumnEntity columnEntity = new ColumnEntity();
             columnEntity.setColumnName(column.get("columnName" ));
             columnEntity.setDataType(column.get("dataType" ));
-            columnEntity.setComments(column.get("columnComment" ));
+            if(useComments){
+            	 columnEntity.setComments(column.get("columnComment" ));//列注释
+            }else{
+            	columnEntity.setComments(columnEntity.getColumnName());
+            }
+           
             columnEntity.setExtra(column.get("extra" ));
 
             //列名转换成Java属性名
@@ -116,15 +126,20 @@ public class GenUtils {
         mainPath = StringUtils.isBlank(mainPath) ? "io.renren" : mainPath;
         //封装模板数据
         Map<String, Object> map = new HashMap<>();
-        map.put("tableName", tableEntity.getTableName());
-        map.put("comments", tableEntity.getComments());
+        map.put("tableName", tableEntity.getTableName());//表名
+        map.put("comments", tableEntity.getComments());//表注释
         map.put("pk", tableEntity.getPk());
         //map.put("className", tableEntity.getClassName());//TSysEmployeeController
         /**
          * 2018年11月7日16:46:41
          * 更新逻辑  将className进行处理 ，将指定的规则集合去掉  比如  t_sys_xxxxx  去掉TSys
          */
-        String[] cutNames = getConfig().getStringArray("cutNames");
+        String[] cutNames = null;
+        if(!org.springframework.util.StringUtils.isEmpty(Constant.cutName)){
+        	cutNames = Constant.cutName.split(",");
+        }else{
+        	cutNames = getConfig().getStringArray("cutNames");
+        }
         if(cutNames.length>0){
         	String className_ =  tableEntity.getClassName();
 	        for(int i=0;i<cutNames.length;i++){
@@ -205,13 +220,16 @@ public class GenUtils {
         }
         return columnToJava(tableName);
     }
-
+    static PropertiesConfiguration pro;
     /**
      * 获取配置信息
      */
-    public  Configuration getConfig() {
+    public  synchronized Configuration getConfig() {
         try {
-            return new PropertiesConfiguration("generator.properties" );
+        	if(pro == null){
+        		pro =  new PropertiesConfiguration("generator.properties" );
+        	}
+        	return pro;
         } catch (ConfigurationException e) {
             throw new RRException("获取配置文件失败，", e);
         }
